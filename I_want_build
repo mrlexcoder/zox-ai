@@ -1,0 +1,53 @@
+Best Offline Model for 12GB RAM
+ModelSizeBest ForMistral 7B Q4~4GBFast, smart, great instruction followingLlama 3.1 8B Q4~5GBBest overall for tasksPhi-3 Medium~4GBLightweight + smart
+✅ My Recommendation → Llama 3.1 8B via Ollama
+
+Fits in 5GB RAM (leaves 7GB for OS + apps)
+Understands complex commands naturally
+Free, fully offline, no API key
+
+
+🏗️ Full Architecture
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0.25s;
+    animation-timing-function: cubic-bezier(0.19, 1, 0.22, 1);
+  }
+VvisualizeVvisualize show_widget
+🛠️ Full Tech Stack
+LayerToolPurposeVoice Inputfaster-whisperOffline speech-to-text, runs on CPUAI BrainOllama + Llama 3.1 8B Q4Understands commands, makes plansMouse/KeyboardpyautoguiHuman-like clicks, typing with delaysUI ReadingpywinautoReads window titles, buttons, inputsApp LaunchersubprocessOpens any app on WindowsFile Controlos, shutil, pathlibCreate, move, delete filesBrowserselenium or pyautoguiOpen URLs, fill forms, clickGUI Interfacetkinter or PyQt6The chat + voice windowTTS (speak back)pyttsx3Fully offline text-to-speech
+
+⚡ Setup Plan (Step by Step)
+Step 1 — Install Ollama + pull model:
+bash# Download from ollama.com, then:
+ollama pull llama3.1:8b-instruct-q4_K_M
+Step 2 — Install Python libraries:
+bashpip install faster-whisper pyautogui pywinauto pyttsx3 requests pygetwindow
+Step 3 — The core Python loop:
+pythonimport requests, pyautogui, subprocess, json
+
+def ask_llm(prompt):
+    r = requests.post("http://localhost:11434/api/generate", json={
+        "model": "llama3.1:8b-instruct-q4_K_M",
+        "prompt": prompt,
+        "stream": False
+    })
+    return json.loads(r.json()["response"])  # returns action JSON
+
+def execute(action):
+    if action["intent"] == "open_app":
+        subprocess.Popen(action["app"])
+    elif action["intent"] == "type_text":
+        pyautogui.typewrite(action["text"], interval=0.05)  # human-like
+    elif action["intent"] == "create_file":
+        open(action["path"], "w").write(action["content"])
+    # ...more handlers
+
+while True:
+    user_input = input("You: ")
+    plan = ask_llm(user_input)
+    execute(plan)
+
+🚀 Want Me to Build the Complete Project?
+I can generate the full working code right now — all files, ready to run. Want me to start?

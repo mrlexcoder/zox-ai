@@ -1,0 +1,16 @@
+faster-whisper==1.0.0
+PyQt6==6.6.1
+pyttsx3==2.90
+pyautogui==0.9.54
+pywinauto==0.6.8
+psutil==5.9.8
+requests==2.31.0
+PyGetWindow==0.0.9
+pillow==10.2.0
+numpy==1.26.3
+torch==2.1.2
+pycaw==20230407
+screen-brightness-control==0.20.0
+schedule==1.2.0
+sounddevice==0.4.6
+comtypes==1.4.1
