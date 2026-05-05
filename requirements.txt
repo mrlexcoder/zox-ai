@@ -6,7 +6,7 @@ pywinauto==0.6.8
 psutil==5.9.8
 requests==2.31.0
 PyGetWindow==0.0.9
-pillow==10.2.0
+pillow==12.2.0
 numpy==1.26.3
 torch==2.1.2
 pycaw==20230407
