@@ -9,9 +9,9 @@ import json
 import threading
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QHBoxLayout, QTextEdit, QLineEdit, QPushButton, 
-                             QLabel, QFrame)
+                             QLabel, QFrame, QMenuBar, QMenu)
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QObject
-from PyQt6.QtGui import QFont, QTextCursor
+from PyQt6.QtGui import QFont, QTextCursor, QAction
 
 from core.llm import LLMEngine
 from core.voice_input import VoiceInput
@@ -22,6 +22,11 @@ from actions.mouse_keyboard import MouseKeyboardController
 from actions.browser_control import BrowserController
 from actions.system_control import SystemController
 from actions.scheduler import TaskScheduler
+from actions.clipboard_control import ClipboardController
+from actions.notification_control import NotificationController
+from utils.banner import print_banner, get_version
+from utils.history import HistoryManager
+from utils.settings_dialog import SettingsDialog
 
 
 class SignalEmitter(QObject):
@@ -51,9 +56,21 @@ class Zox AIGUI(QMainWindow):
         self.browser_controller = BrowserController()
         self.system_controller = SystemController()
         self.scheduler = TaskScheduler()
+        self.clipboard_controller = ClipboardController()
+        self.notification_controller = NotificationController()
+        
+        # Initialize utilities
+        self.history_manager = HistoryManager()
         
         self.is_listening = False
         self.init_ui()
+        
+        # Show welcome notification
+        self.notification_controller.show_notification(
+            "Zox AI Started",
+            f"Version {get_version()} is ready!",
+            duration=3
+        )
         
     def init_ui(self):
         """Initialize the user interface"""
@@ -90,6 +107,42 @@ class Zox AIGUI(QMainWindow):
         title_label.setFont(QFont("Arial", 16, QFont.Weight.Bold))
         title_label.setStyleSheet("color: #00ff41; border: none;")
         
+        # Settings button
+        settings_btn = QPushButton("⚙️")
+        settings_btn.setFixedSize(30, 30)
+        settings_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #0066ff;
+                color: white;
+                border: none;
+                border-radius: 15px;
+                font-size: 16px;
+            }
+            QPushButton:hover {
+                background-color: #0052cc;
+            }
+        """)
+        settings_btn.clicked.connect(self.open_settings)
+        settings_btn.setToolTip("Settings")
+        
+        # History button
+        history_btn = QPushButton("📜")
+        history_btn.setFixedSize(30, 30)
+        history_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #9900ff;
+                color: white;
+                border: none;
+                border-radius: 15px;
+                font-size: 16px;
+            }
+            QPushButton:hover {
+                background-color: #7700cc;
+            }
+        """)
+        history_btn.clicked.connect(self.show_history)
+        history_btn.setToolTip("Command History")
+        
         close_btn = QPushButton("✕")
         close_btn.setFixedSize(30, 30)
         close_btn.setStyleSheet("""
@@ -108,6 +161,8 @@ class Zox AIGUI(QMainWindow):
         
         header_layout.addWidget(title_label)
         header_layout.addStretch()
+        header_layout.addWidget(settings_btn)
+        header_layout.addWidget(history_btn)
         header_layout.addWidget(close_btn)
         container_layout.addLayout(header_layout)
         
@@ -239,8 +294,10 @@ class Zox AIGUI(QMainWindow):
             action_plan = self.llm.get_action_plan(user_input)
             
             if not action_plan:
-                self.signal_emitter.message_signal.emit("Zox AI", "I couldn't understand that. Could you rephrase?")
+                response = "I couldn't understand that. Could you rephrase?"
+                self.signal_emitter.message_signal.emit("Zox AI", response)
                 self.signal_emitter.status_signal.emit("Ready")
+                self.history_manager.add_command(user_input, response, False)
                 return
             
             # Execute actions
@@ -252,10 +309,14 @@ class Zox AIGUI(QMainWindow):
             self.signal_emitter.message_signal.emit("Zox AI", response)
             self.signal_emitter.status_signal.emit("Ready")
             
+            # Save to history
+            self.history_manager.add_command(user_input, response, True)
+            
         except Exception as e:
             error_msg = f"Error: {str(e)}"
             self.signal_emitter.message_signal.emit("Zox AI", error_msg)
             self.signal_emitter.status_signal.emit("Error")
+            self.history_manager.add_command(user_input, error_msg, False)
     
     def execute_actions(self, action_plan):
         """Execute the action plan from LLM"""
@@ -311,6 +372,23 @@ class Zox AIGUI(QMainWindow):
                 elif intent == "schedule_task":
                     self.scheduler.schedule_task(action.get("time"), action.get("command"))
                     response_text = f"Task scheduled for {action.get('time')}"
+                
+                # Clipboard
+                elif intent == "copy_text":
+                    self.clipboard_controller.copy_text(action.get("text"))
+                    response_text = "Text copied to clipboard"
+                elif intent == "paste_text":
+                    text = self.clipboard_controller.paste_text()
+                    response_text = f"Clipboard content: {text}"
+                
+                # Notifications
+                elif intent == "show_notification":
+                    self.notification_controller.show_notification(
+                        action.get("title", "Zox AI"),
+                        action.get("message", ""),
+                        duration=action.get("duration", 5)
+                    )
+                    response_text = "Notification shown"
             
             return response_text
             
@@ -386,13 +464,16 @@ class Zox AIGUI(QMainWindow):
 
 def main():
     """Main entry point"""
+    # Print banner to console
+    print_banner()
+    
     app = QApplication(sys.argv)
     
     # Set application style
     app.setStyle("Fusion")
     
     # Create and show GUI
-    zoxai = Zox AIGUI()
+    zoxai = ZoxAIGUI()
     zoxai.show()
     
     sys.exit(app.exec())
@@ -400,3 +481,35 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+    def open_settings(self):
+        """Open settings dialog"""
+        dialog = SettingsDialog(self)
+        if dialog.exec():
+            self.signal_emitter.message_signal.emit("Zox AI", "Settings saved successfully!")
+            self.notification_controller.show_success("Settings updated")
+    
+    def show_history(self):
+        """Show command history"""
+        recent = self.history_manager.get_recent_commands(10)
+        
+        if not recent:
+            self.add_message_to_chat("Zox AI", "No command history yet.")
+            return
+        
+        history_text = "📜 Recent Commands:\n\n"
+        for i, entry in enumerate(reversed(recent), 1):
+            timestamp = entry['timestamp'].split('T')[1][:5]  # HH:MM
+            status = "✅" if entry.get('success', True) else "❌"
+            history_text += f"{i}. [{timestamp}] {status} {entry['command']}\n"
+        
+        self.add_message_to_chat("Zox AI", history_text)
+        
+        # Show statistics
+        stats = self.history_manager.get_statistics()
+        stats_text = f"\n📊 Statistics:\n"
+        stats_text += f"Total Commands: {stats['total_commands']}\n"
+        stats_text += f"Success Rate: {stats['success_rate']:.1f}%\n"
+        stats_text += f"Favorites: {stats['favorites_count']}"
+        
+        self.add_message_to_chat("Zox AI", stats_text)
