@@ -8,7 +8,7 @@ requests==2.31.0
 PyGetWindow==0.0.9
 pillow==10.2.0
 numpy==1.26.3
-torch==2.1.2
+torch==2.13.0
 pycaw==20230407
 screen-brightness-control==0.20.0
 schedule==1.2.0
